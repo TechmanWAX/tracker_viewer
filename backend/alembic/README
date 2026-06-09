@@ -1,0 +1,29 @@
+# Alembic README
+
+This directory contains Alembic migrations for the GPS Log Tracker backend.
+
+## Setup
+
+1. Install dependencies: `pip install -e .`
+2. Set up your database and update `alembic.ini` with the correct connection URL
+3. Run migrations: `alembic upgrade head`
+
+## Commands
+
+- `alembic revision -m "message"` - Create a new migration
+- `alembic upgrade head` - Run all pending migrations
+- `alembic downgrade -1` - Roll back one migration
+- `alembic current` - Show current revision
+
+## Database Extensions
+
+The initial migration enables:
+- **PostGIS**: For spatial data types and functions
+- **TimescaleDB**: For time-series hypertables
+
+## Models
+
+The migrations reference models in `app/models/`:
+- `User`: User authentication and profile
+- `Trip`: Trip metadata
+- `TelemetryPoint`: Time-series telemetry data (hypertable)
