@@ -12,6 +12,14 @@ Works with real-world controller firmware: some emit full GPS coords, others onl
 - Node.js 18+
 - PostgreSQL 15+ (PostGIS extension)
 
+sudo -i
+useradd -s /sbin/nologin tracker
+mkdir /home/tracker
+cd /home/tracker
+git clone https://github.com/TechmanWAX/tracker_viewer.git
+cd tracker_viewer
+chown -R tracker:tracker /home/tracker/
+
 ### Backend
 
 ```bash
