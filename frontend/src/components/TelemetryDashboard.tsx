@@ -215,18 +215,12 @@ function TelemetryChart({
   height?: number;
   setHoverMs: (ms: number | null) => void;
 }) {
-  if (data.length === 0) {
-    return (
-      <div style={{ background: 'var(--bg-2)', padding: 12, borderRadius: 8, height }}>
-        <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>{label}</div>
-        <div style={{ fontSize: 12, opacity: 0.4 }}>No data</div>
-      </div>
-    );
-  }
-
-  // Gap markers: filter in the current data slice, pick unique
-  // positions, and render one dashed line per gap.
+  // All hooks must come before any early return (React Rules of
+  // Hooks). The chart component always calls useMemo for gap
+  // markers, even when data is empty — the early return below
+  // just skips rendering the chart JSX.
   const gapLines = useMemo(() => {
+    if (data.length === 0) return [];
     const seen = new Set<number>();
     const out: { x: number }[] = [];
     for (const d of data) {
@@ -237,6 +231,15 @@ function TelemetryChart({
     }
     return out;
   }, [data]);
+
+  if (data.length === 0) {
+    return (
+      <div style={{ background: 'var(--bg-2)', padding: 12, borderRadius: 8, height }}>
+        <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>{label}</div>
+        <div style={{ fontSize: 12, opacity: 0.4 }}>No data</div>
+      </div>
+    );
+  }
 
   const displayMs = hoverX != null
     ? data.find((d) => d.xIndex === hoverX)?.ms ?? null
