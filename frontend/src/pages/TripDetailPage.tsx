@@ -95,6 +95,14 @@ export default function TripDetailPage() {
     }
   }
 
+  const onCopyLink = useCallback(async () => {
+    if (!trip?.shareToken) return;
+    const url = `${window.location.origin}/share/${trip.shareToken}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  }, [trip?.shareToken]);
+
   const onShare = useCallback(async () => {
     if (!trip) return;
     setSharing(true);
@@ -152,6 +160,9 @@ export default function TripDetailPage() {
             <button onClick={onShare} disabled={sharing} className="btn-sm" style={{ margin: 0 }} title={trip.isShared ? 'Revoke share link' : 'Generate share link'}>
               {sharing ? '…' : trip.isShared ? '🔗' : '📤'}
             </button>
+            {trip.isShared && (
+              <button onClick={onCopyLink} className="btn-sm" style={{ margin: 0 }} title="Copy share link to clipboard">📋</button>
+            )}
             {copied && <span style={{ fontSize: 11, color: 'var(--success)' }}>Copied!</span>}
             <button onClick={onDelete} disabled={deleting} className="btn-danger btn-sm" aria-label="Delete trip">
               {deleting ? 'Deleting…' : 'Delete'}
