@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { listTrips, deleteTrip } from '../api/trips';
+import { listTrips, deleteTrip, shareTrip, unshareTrip } from '../api/trips';
 import type { Trip } from '../types/trip';
 import AppHeader from '../components/AppHeader';
 
@@ -74,6 +74,7 @@ export default function TripsListPage() {
   //   2. The row can show a per-trip error message that persists
   //      until the user does something about it.
   const [rowState, setRowState] = useState<Record<string, RowDeleteState>>({});
+  const [sharing, setSharing] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
 
   const setRow = (id: string, s: RowDeleteState) =>
@@ -125,6 +126,30 @@ export default function TripsListPage() {
 
   function onCancelConfirm(t: Trip) {
     setRow(t.id, { kind: 'idle' });
+  }
+
+  async function handleShare(t: Trip) {
+    setSharing((cur) => ({ ...cur, [t.id]: true }));
+    try {
+      const res = t.isShared
+        ? await unshareTrip(t.id)
+        : await shareTrip(t.id);
+      setTrips((cur) =>
+        cur.map((x) =>
+          x.id === t.id
+            ? { ...x, isShared: res.is_shared, shareToken: res.share_token }
+            : x,
+        ),
+      );
+    } catch {
+      // silently ignore — user can retry
+    } finally {
+      setSharing((cur) => ({ ...cur, [t.id]: false }));
+    }
+  }
+
+  function getShareUrl(t: Trip): string {
+    return `${window.location.origin}/share/${t.shareToken}`;
   }
 
   async function onDeleteConfirmed(t: Trip) {
@@ -191,10 +216,30 @@ export default function TripsListPage() {
                   ) : (
                     <span className="badge" style={{ fontSize: 10 }}>No GPS</span>
                   )}
+                  {t.isShared ? (
+                    <span className="badge" style={{ fontSize: 10, background: 'var(--success)', color: '#fff' }}>Shared</span>
+                  ) : (
+                    <span className="badge" style={{ fontSize: 10, opacity: 0.5 }}>Private</span>
+                  )}
                 </div>
               </div>
               <div className="trip-card-actions">
                 <button onClick={() => navigate(`/trips/${t.id}`)}>Open</button>
+                {t.isShared && t.shareToken ? (
+                  <button
+                    onClick={() => { void navigator.clipboard.writeText(getShareUrl(t)); }}
+                    className="btn-sm"
+                    title="Copy share link"
+                  >📋 Copy link</button>
+                ) : null}
+                <button
+                  onClick={() => void handleShare(t)}
+                  disabled={sharing[t.id]}
+                  className={`btn-sm ${t.isShared ? 'btn-danger' : 'btn-primary'}`}
+                  style={t.isShared ? undefined : { background: 'var(--accent)', color: '#fff' }}
+                >
+                  {sharing[t.id] ? '...' : t.isShared ? 'Revoke' : 'Share'}
+                </button>
                 {state === 'confirming' ? (
                   <>
                     <span style={{ fontSize: 12, color: 'var(--danger)' }}>Delete?</span>
