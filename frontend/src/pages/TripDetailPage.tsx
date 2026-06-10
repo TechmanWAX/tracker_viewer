@@ -1,11 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, useCallback } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import MapView from '../components/MapView';
 import TelemetryDashboard from '../components/TelemetryDashboard';
 import PlaybackControls from '../components/PlaybackControls';
 import AppHeader from '../components/AppHeader';
 import { usePlaybackEngine } from '../hooks/usePlayback';
-import { getTrip, updateTrip, deleteTrip } from '../api/trips';
+import { getTrip, updateTrip, deleteTrip, shareTrip as apiShare, unshareTrip } from '../api/trips';
 import type { Trip } from '../types/trip';
 
 function fmtDate(iso: string): string {
@@ -44,6 +44,8 @@ export default function TripDetailPage() {
   const [editName, setEditName] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +95,30 @@ export default function TripDetailPage() {
     }
   }
 
+  const onShare = useCallback(async () => {
+    if (!trip) return;
+    setSharing(true);
+    try {
+      if (trip.isShared) {
+        await unshareTrip(trip.id);
+        setTrip({ ...trip, isShared: false, shareToken: null });
+        setCopied(false);
+      } else {
+        const r = await apiShare(trip.id);
+        setTrip({ ...trip, isShared: true, shareToken: r.share_token });
+        if (r.share_url) {
+          await navigator.clipboard.writeText(r.share_url);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2500);
+        }
+      }
+    } catch (err) {
+      setLoadError(String(err));
+    } finally {
+      setSharing(false);
+    }
+  }, [trip]);
+
   return (
     <div className="page-shell" style={{ height: '100dvh' }}>
       <AppHeader />
@@ -122,9 +148,15 @@ export default function TripDetailPage() {
           )}
         </div>
         {trip && (
-          <button onClick={onDelete} disabled={deleting} className="btn-danger btn-sm" aria-label="Delete trip">
-            {deleting ? 'Deleting…' : 'Delete'}
-          </button>
+          <>
+            <button onClick={onShare} disabled={sharing} className="btn-sm" style={{ margin: 0 }} title={trip.isShared ? 'Revoke share link' : 'Generate share link'}>
+              {sharing ? '…' : trip.isShared ? '🔗' : '📤'}
+            </button>
+            {copied && <span style={{ fontSize: 11, color: 'var(--success)' }}>Copied!</span>}
+            <button onClick={onDelete} disabled={deleting} className="btn-danger btn-sm" aria-label="Delete trip">
+              {deleting ? 'Deleting…' : 'Delete'}
+            </button>
+          </>
         )}
       </div>
       {loadError && (

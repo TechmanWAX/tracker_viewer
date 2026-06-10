@@ -74,6 +74,12 @@ class Trip(Base):
     original_filename = Column(String(512), nullable=True)
     content_sha256 = Column(CHAR(64), nullable=True)
 
+    # Share token — a short random string that, when set, enables a
+    # public link at GET /public/trips/{token}. The token is null
+    # until the owner explicitly shares the trip.
+    share_token = Column(String(64), nullable=True)
+    is_shared = Column(Boolean, nullable=False, server_default="false")
+
     # The duplicate-detection index: any user can have many trips
     # but may not have two with the same (filename, hash) pair.
     # Different filename or different content = allowed (it's

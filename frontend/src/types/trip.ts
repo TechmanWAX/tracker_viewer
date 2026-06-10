@@ -13,6 +13,8 @@ export interface Trip {
   // this to decide between rendering a map or a "No GPS data"
   // placeholder.
   hasGps: boolean;
+  isShared: boolean;
+  shareToken: string | null;
   totalDistanceMeters: number | null;
   createdAt: string;
 }

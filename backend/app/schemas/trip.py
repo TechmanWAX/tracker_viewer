@@ -35,6 +35,9 @@ class Trip(TripBase):
     total_distance_meters: Optional[float] = None
     # True iff at least one row in this trip has lat/lng.
     has_gps: bool = True
+    # Sharing
+    is_shared: bool = False
+    share_token: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -46,3 +49,10 @@ class TripList(BaseModel):
     total: int
     page: int
     per_page: int
+
+
+class ShareResponse(BaseModel):
+    """Response when generating/revoking a share link."""
+    share_token: Optional[str] = None
+    share_url: Optional[str] = None
+    is_shared: bool

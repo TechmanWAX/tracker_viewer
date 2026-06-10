@@ -13,6 +13,8 @@ interface BackendTrip {
   min_lon: number | null;
   max_lon: number | null;
   has_gps: boolean;
+  is_shared: boolean;
+  share_token: string | null;
   total_distance_meters: number | null;
   created_at: string;
 }
@@ -29,6 +31,8 @@ function toTrip(t: BackendTrip): Trip {
     minLon: t.min_lon,
     maxLon: t.max_lon,
     hasGps: t.has_gps,
+    isShared: t.is_shared,
+    shareToken: t.share_token,
     totalDistanceMeters: t.total_distance_meters,
     createdAt: t.created_at,
   };
@@ -72,4 +76,20 @@ export async function uploadTrip(
     }
   );
   return { jobId: res.data.jobId ?? res.data.job_id };
+}
+
+interface ShareResponse {
+  share_token: string | null;
+  share_url: string | null;
+  is_shared: boolean;
+}
+
+export async function shareTrip(tripId: string): Promise<ShareResponse> {
+  const { data } = await api.post<ShareResponse>(`/trips/${tripId}/share`);
+  return data;
+}
+
+export async function unshareTrip(tripId: string): Promise<ShareResponse> {
+  const { data } = await api.delete<ShareResponse>(`/trips/${tripId}/share`);
+  return data;
 }

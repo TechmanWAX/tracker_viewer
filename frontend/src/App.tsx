@@ -5,6 +5,7 @@ import RegisterPage from './pages/RegisterPage';
 import TripsListPage from './pages/TripsListPage';
 import TripUploadPage from './pages/TripUploadPage';
 import TripDetailPage from './pages/TripDetailPage';
+import ShareViewPage from './pages/ShareViewPage';
 import CheckEmailPage from './pages/CheckEmailPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -66,6 +67,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/share/:token" element={<ShareViewPage />} />
         <Route path="*" element={<Navigate to="/trips" replace />} />
       </Routes>
     </AuthBoundary>

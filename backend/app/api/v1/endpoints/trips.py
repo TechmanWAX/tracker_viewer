@@ -22,7 +22,7 @@ from app.core.config import get_settings
 from app.core.dependencies import get_current_user
 from app.db.session import AsyncSessionLocal, get_session
 from app.models.user import User
-from app.schemas.trip import TripUpdate, Trip, TripList
+from app.schemas.trip import TripUpdate, Trip, TripList, ShareResponse
 from app.services.trip_service import TripService
 from app.services.job_service import JobService
 
@@ -394,3 +394,43 @@ async def delete_trip(
     
     await TripService.delete_trip(session, trip)
     return None
+
+
+@router.post("/{trip_id}/share", response_model=ShareResponse)
+async def share_trip(
+    trip_id: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+    request: Request = None,  # not used, just for router compat
+):
+    """Generate (or return existing) public share link for a trip."""
+    trip = await TripService.get_trip(session, trip_id, str(user.user_id))
+    if trip is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")
+
+    import secrets
+    if not trip.share_token:
+        trip.share_token = secrets.token_urlsafe(12)
+    trip.is_shared = True
+    await session.commit()
+
+    base = get_settings().app_base_url.rstrip("/")
+    url = f"{base}/share/{trip.share_token}"
+    return ShareResponse(share_token=trip.share_token, share_url=url, is_shared=True)
+
+
+@router.delete("/{trip_id}/share", response_model=ShareResponse)
+async def unshare_trip(
+    trip_id: str,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Revoke public share link for a trip."""
+    trip = await TripService.get_trip(session, trip_id, str(user.user_id))
+    if trip is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Trip not found")
+
+    trip.share_token = None
+    trip.is_shared = False
+    await session.commit()
+    return ShareResponse(share_token=None, share_url=None, is_shared=False)
