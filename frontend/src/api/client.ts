@@ -47,8 +47,12 @@ api.interceptors.response.use(
     const status = err.response?.status;
     const url = original.url || '';
     const isAuthCall = url.includes('/auth/');
+    // /auth/me is the "check session" probe — if it gets a 401 we
+    // should try refreshing the token (using the still-valid
+    // refresh_token cookie) before declaring the session dead.
+    const isMeCall = url.includes('/auth/me');
 
-    if (status === 401 && !original._retry && !isAuthCall) {
+    if (status === 401 && !original._retry && (!isAuthCall || isMeCall)) {
       original._retry = true;
       try {
         await refreshAccessToken();
@@ -61,7 +65,7 @@ api.interceptors.response.use(
       }
     }
 
-    if (status === 401 && isAuthCall) {
+    if (status === 401 && isAuthCall && !isMeCall) {
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
       }
