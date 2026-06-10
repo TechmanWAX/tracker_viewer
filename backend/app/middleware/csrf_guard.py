@@ -38,7 +38,7 @@ class CSRFGuardMiddleware(BaseHTTPMiddleware):
 
         # Login/register are entry points — they issue the csrf_token cookie,
         # so they can't require one. Other /auth/* (logout, refresh) require it.
-        if request.url.path.endswith(("/auth/login", "/auth/register")):
+        if request.url.path.endswith(("/auth/login", "/auth/register", "/auth/resend-verification")):
             response = await call_next(request)
             return response
 
