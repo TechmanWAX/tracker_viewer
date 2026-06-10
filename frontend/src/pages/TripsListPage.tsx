@@ -131,9 +131,29 @@ export default function TripsListPage() {
   async function handleShare(t: Trip) {
     setSharing((cur) => ({ ...cur, [t.id]: true }));
     try {
-      const res = t.isShared
-        ? await unshareTrip(t.id)
-        : await shareTrip(t.id);
+      const res = await shareTrip(t.id);
+      setTrips((cur) =>
+        cur.map((x) =>
+          x.id === t.id
+            ? { ...x, isShared: res.is_shared, shareToken: res.share_token }
+            : x,
+        ),
+      );
+      if (res.share_token) {
+        const url = `${window.location.origin}/share/${res.share_token}`;
+        await navigator.clipboard.writeText(url);
+      }
+    } catch {
+      // silently ignore — user can retry
+    } finally {
+      setSharing((cur) => ({ ...cur, [t.id]: false }));
+    }
+  }
+
+  async function handleUnshare(t: Trip) {
+    setSharing((cur) => ({ ...cur, [t.id]: true }));
+    try {
+      const res = await unshareTrip(t.id);
       setTrips((cur) =>
         cur.map((x) =>
           x.id === t.id
@@ -142,14 +162,10 @@ export default function TripsListPage() {
         ),
       );
     } catch {
-      // silently ignore — user can retry
+      // silently ignore
     } finally {
       setSharing((cur) => ({ ...cur, [t.id]: false }));
     }
-  }
-
-  function getShareUrl(t: Trip): string {
-    return `${window.location.origin}/share/${t.shareToken}`;
   }
 
   async function onDeleteConfirmed(t: Trip) {
@@ -225,21 +241,24 @@ export default function TripsListPage() {
               </div>
               <div className="trip-card-actions">
                 <button onClick={() => navigate(`/trips/${t.id}`)}>Open</button>
-                {t.isShared && t.shareToken ? (
+                {t.isShared ? (
                   <button
-                    onClick={() => { void navigator.clipboard.writeText(getShareUrl(t)); }}
+                    onClick={() => void handleUnshare(t)}
+                    disabled={sharing[t.id]}
+                    className="btn-sm btn-danger"
+                  >
+                    {sharing[t.id] ? '...' : 'Revoke'}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => void handleShare(t)}
+                    disabled={sharing[t.id]}
                     className="btn-sm"
-                    title="Copy share link"
-                  >📋 Copy link</button>
-                ) : null}
-                <button
-                  onClick={() => void handleShare(t)}
-                  disabled={sharing[t.id]}
-                  className={`btn-sm ${t.isShared ? 'btn-danger' : 'btn-primary'}`}
-                  style={t.isShared ? undefined : { background: 'var(--accent)', color: '#fff' }}
-                >
-                  {sharing[t.id] ? '...' : t.isShared ? 'Revoke' : 'Share'}
-                </button>
+                    style={{ background: 'var(--accent)', color: '#fff' }}
+                  >
+                    {sharing[t.id] ? '...' : 'Share'}
+                  </button>
+                )}
                 {state === 'confirming' ? (
                   <>
                     <span style={{ fontSize: 12, color: 'var(--danger)' }}>Delete?</span>
