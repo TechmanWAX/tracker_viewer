@@ -87,6 +87,7 @@ export default function MapView({ tripId, hasGps = true }: Props) {
   const setHoverMs = useTelemetryStore((s) => s.setHoverMs);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [satellite, setSatellite] = useState(() => localStorage.getItem('map-satellite') === '1');
 
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<Map | null>(null);
@@ -110,7 +111,14 @@ export default function MapView({ tripId, hasGps = true }: Props) {
       attributions: '© <a href="https://carto.com/">CARTO</a>',
     }),
     visible: false,
-    preload: 1,
+  }));
+  const satLayerRef = useRef(new TileLayer({
+    source: new XYZ({
+      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      maxZoom: 19,
+      attributions: '© Esri',
+    }),
+    visible: false,
   }));
 
   // ---- init / destroy map ------------------------------------
@@ -121,6 +129,7 @@ export default function MapView({ tripId, hasGps = true }: Props) {
       layers: [
         lightLayerRef.current,
         darkLayerRef.current,
+        satLayerRef.current,
         new VectorLayer({ source: trackSourceRef.current, style: trackStyle }),
         new VectorLayer({ source: markerSourceRef.current }),
         new VectorLayer({ source: hoverSourceRef.current }),
@@ -132,18 +141,30 @@ export default function MapView({ tripId, hasGps = true }: Props) {
     return () => map.setTarget(undefined);
   }, []);
 
-  // ---- sync tile layer to theme ------------------------------
+  // ---- sync tile layer to theme + satellite -----------------
   useEffect(() => {
     const sync = () => {
       const theme = document.documentElement.getAttribute('data-theme') || 'light';
-      lightLayerRef.current.setVisible(theme === 'light');
-      darkLayerRef.current.setVisible(theme === 'dark');
+      const sat = localStorage.getItem('map-satellite') === '1';
+      lightLayerRef.current.setVisible(!sat && theme === 'light');
+      darkLayerRef.current.setVisible(!sat && theme === 'dark');
+      satLayerRef.current.setVisible(sat);
     };
     sync();
     const obs = new MutationObserver(sync);
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => obs.disconnect();
   }, []);
+
+  // ---- satellite toggle -------------------------------------
+  const toggleSatellite = useCallback(() => {
+    const next = !satellite;
+    setSatellite(next);
+    localStorage.setItem('map-satellite', next ? '1' : '0');
+    lightLayerRef.current.setVisible(!next && (document.documentElement.getAttribute('data-theme') || 'light') === 'light');
+    darkLayerRef.current.setVisible(!next && (document.documentElement.getAttribute('data-theme') || 'light') === 'dark');
+    satLayerRef.current.setVisible(next);
+  }, [satellite]);
 
   // ---- positioned points (filtered, full set) -----------------
   const positionedPoints = useMemo(
@@ -368,8 +389,16 @@ export default function MapView({ tripId, hasGps = true }: Props) {
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
-      <div className="map-overlay">
-        {loading ? 'Loading…' : `${points.length}${points.length < totalPoints ? ` / ${totalPoints}` : ''} pts`}
+      <div className="map-overlay" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <span>{loading ? 'Loading…' : `${points.length}${points.length < totalPoints ? ` / ${totalPoints}` : ''} pts`}</span>
+        <button
+          onClick={toggleSatellite}
+          className={satellite ? 'btn-primary btn-sm' : 'btn-sm'}
+          style={{ fontSize: 12, margin: 0, padding: '3px 8px' }}
+          title="Toggle satellite view"
+        >
+          🛰️
+        </button>
       </div>
     </div>
   );
