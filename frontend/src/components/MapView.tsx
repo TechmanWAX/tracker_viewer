@@ -3,7 +3,7 @@ import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
 import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
-import OSM from 'ol/source/OSM';
+import XYZ from 'ol/source/XYZ';
 import { Circle as CircleStyle, Fill, Stroke, Style } from 'ol/style';
 import { LineString, Point } from 'ol/geom';
 import Feature from 'ol/Feature';
@@ -95,6 +95,23 @@ export default function MapView({ tripId, hasGps = true }: Props) {
   const hoverSourceRef = useRef(new VectorSource());
   const abortRef = useRef<AbortController | null>(null);
   const { seekToIndex } = usePlayback();
+  const lightLayerRef = useRef(new TileLayer({
+    source: new XYZ({
+      url: 'https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png',
+      maxZoom: 17,
+      attributions: '© <a href="https://opentopomap.org">OpenTopoMap</a>',
+    }),
+    visible: true,
+  }));
+  const darkLayerRef = useRef(new TileLayer({
+    source: new XYZ({
+      url: 'https://{a-c}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+      maxZoom: 19,
+      attributions: '© <a href="https://carto.com/">CARTO</a>',
+    }),
+    visible: false,
+    preload: 1,
+  }));
 
   // ---- init / destroy map ------------------------------------
   useEffect(() => {
@@ -102,7 +119,8 @@ export default function MapView({ tripId, hasGps = true }: Props) {
     const map = new Map({
       target: containerRef.current,
       layers: [
-        new TileLayer({ source: new OSM() }),
+        lightLayerRef.current,
+        darkLayerRef.current,
         new VectorLayer({ source: trackSourceRef.current, style: trackStyle }),
         new VectorLayer({ source: markerSourceRef.current }),
         new VectorLayer({ source: hoverSourceRef.current }),
@@ -112,6 +130,19 @@ export default function MapView({ tripId, hasGps = true }: Props) {
     });
     mapRef.current = map;
     return () => map.setTarget(undefined);
+  }, []);
+
+  // ---- sync tile layer to theme ------------------------------
+  useEffect(() => {
+    const sync = () => {
+      const theme = document.documentElement.getAttribute('data-theme') || 'light';
+      lightLayerRef.current.setVisible(theme === 'light');
+      darkLayerRef.current.setVisible(theme === 'dark');
+    };
+    sync();
+    const obs = new MutationObserver(sync);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
   }, []);
 
   // ---- positioned points (filtered, full set) -----------------
