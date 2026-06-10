@@ -188,12 +188,6 @@ class Settings(BaseSettings):
                 "cors_origins contains a localhost entry — these should "
                 "be removed (and replaced with the production frontend URL)."
             )
-        if self.mail_enabled and not self.mail_tls_verify:
-            issues.append(
-                "MAIL_TLS_VERIFY=false — SMTP TLS certificate "
-                "verification is disabled. Set to true once your mail "
-                "server's certificate is valid."
-            )
         return issues
 
 
