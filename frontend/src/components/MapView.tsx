@@ -75,9 +75,9 @@ const hoverStyle = new Style({
 
 /* ─── component ─────────────────────────────────────────────── */
 
-interface Props { tripId: string; hasGps?: boolean; }
+interface Props { tripId: string; hasGps?: boolean; /** Set to false on share/public pages where points are loaded externally */ skipFetch?: boolean; }
 
-export default function MapView({ tripId, hasGps = true }: Props) {
+export default function MapView({ tripId, hasGps = true, skipFetch = false }: Props) {
   const setPoints = useTelemetryStore((s) => s.setPoints);
   const points = useTelemetryStore((s) => s.points);
   const totalPoints = useTelemetryStore((s) => s.totalPoints);
@@ -355,7 +355,7 @@ export default function MapView({ tripId, hasGps = true }: Props) {
 
   // ---- fetch data --------------------------------------------
   useEffect(() => {
-    if (!hasGps) { setPoints([]); return; }
+    if (!hasGps || skipFetch) { setPoints([]); return; }
     if (abortRef.current) abortRef.current.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;

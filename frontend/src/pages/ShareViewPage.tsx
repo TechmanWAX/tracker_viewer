@@ -102,7 +102,7 @@ export default function ShareViewPage() {
       {trip && (
         <div style={{ flex: 1, display: 'grid', gridTemplateRows: '1fr auto', minHeight: 0, overflow: 'hidden' }}>
           <div className="trip-detail-main" style={{ overflow: 'hidden' }}>
-            <MapView tripId={trip.id} hasGps={trip.hasGps} />
+            <MapView tripId={trip.id} hasGps={trip.hasGps} skipFetch />
             <div style={{ background: 'var(--bg-primary)', overflow: 'auto', minHeight: 0 }}>
               <TelemetryDashboard />
             </div>
