@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import MapView from '../components/MapView';
 import TelemetryDashboard from '../components/TelemetryDashboard';
@@ -37,8 +37,18 @@ export default function ShareViewPage() {
   const { token = '' } = useParams<{ token: string }>();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [theme, setTheme] = useState<'light' | 'dark'>(
+    () => (document.documentElement.getAttribute('data-theme') as 'light' | 'dark') || 'light',
+  );
   const setPoints = useTelemetryStore((s) => s.setPoints);
   usePlaybackEngine();
+
+  const toggleTheme = useCallback(() => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('tracker-theme', next);
+    setTheme(next);
+  }, [theme]);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,17 +91,18 @@ export default function ShareViewPage() {
         </Link>
         <span className="badge badge-accent" style={{ fontSize: 11 }}>Shared trip</span>
         {trip && (
-          <>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>
-                {trip.name}
-              </strong>
-              <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
-                {fmtDate(trip.startTime)} → {fmtDate(trip.endTime)} · {fmtDuration(trip.startTime, trip.endTime)} · {fmtDistance(trip.totalDistanceMeters)}
-              </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>
+              {trip.name}
+            </strong>
+            <div style={{ fontSize: 11, color: 'var(--fg-muted)' }}>
+              {fmtDate(trip.startTime)} → {fmtDate(trip.endTime)} · {fmtDuration(trip.startTime, trip.endTime)} · {fmtDistance(trip.totalDistanceMeters)}
             </div>
-          </>
+          </div>
         )}
+        <button onClick={toggleTheme} className="theme-toggle" aria-label="Toggle theme" title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+          {theme === 'dark' ? '☀️' : '🌙'}
+        </button>
       </header>
       {loadError && (
         <div style={{ padding: 24, textAlign: 'center' }}>
