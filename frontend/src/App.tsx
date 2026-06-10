@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import TripsListPage from './pages/TripsListPage';
@@ -16,15 +16,18 @@ import { useAuthStore } from './store/authStore';
 function AuthBoundary({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const setUser = useAuthStore((s) => s.setUser);
+  const location = useLocation();
 
   useEffect(() => {
     function onExpired() {
+      // Don't bounce to login on public routes (share links, etc.)
+      if (location.pathname.startsWith('/share/')) return;
       setUser(null);
       navigate('/login', { replace: true });
     }
     window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
     return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
-  }, [navigate, setUser]);
+  }, [navigate, setUser, location]);
 
   return <>{children}</>;
 }
