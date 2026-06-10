@@ -162,8 +162,8 @@ function AutoCenter({
     const i = Math.min(idx, positionedPoints.length - 1);
     const p = positionedPoints[i];
     programmaticRef.current = true;
-    map.setView([p.lat, p.lon], 15, { animate: true });
-    setTimeout(() => { programmaticRef.current = false; }, 500);
+    map.panTo([p.lat, p.lon], { animate: true, duration: 0.5 });
+    setTimeout(() => { programmaticRef.current = false; }, 600);
   }, [map, positionedPoints]);
 
   const fitFullTrack = useCallback(() => {
@@ -206,11 +206,11 @@ function AutoCenter({
 
   useEffect(() => {
     if (isPlaying && !wasPlaying.current) {
-      fitAroundIndex(currentIndex);
+      fitFullTrack();
       clearTimer();
     }
     wasPlaying.current = isPlaying;
-  }, [isPlaying, currentIndex, fitAroundIndex, clearTimer]);
+  }, [isPlaying, fitFullTrack, clearTimer]);
 
   useEffect(() => {
     const onInteract = () => {
