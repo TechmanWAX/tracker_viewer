@@ -505,20 +505,7 @@ export default function MapView({ tripId, hasGps = true }: Props) {
           />
         )}
       </MapContainer>
-      <div
-        style={{
-          position: 'absolute',
-          top: 10,
-          left: 10,
-          zIndex: 1000,
-          background: 'rgba(15, 17, 21, 0.85)',
-          color: 'var(--fg)',
-          padding: '6px 10px',
-          borderRadius: 6,
-          fontSize: 12,
-          fontFamily: 'monospace',
-        }}
-      >
+      <div className="map-overlay">
         {loading ? 'Loading…' : `${points.length}${points.length < totalPoints ? ` / ${totalPoints}` : ''} pts`}
       </div>
     </div>

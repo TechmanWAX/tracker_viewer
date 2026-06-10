@@ -9,8 +9,21 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (!authLoaded) {
     return (
-      <div style={{ padding: 24, opacity: 0.6, fontSize: 13 }}>
-        Loading…
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-primary)',
+      }}>
+        <div style={{
+          width: 32,
+          height: 32,
+          border: '3px solid var(--border)',
+          borderTopColor: 'var(--accent)',
+          borderRadius: '50%',
+          animation: 'skeleton-pulse 0.8s linear infinite',
+        }} />
       </div>
     );
   }

@@ -568,8 +568,13 @@ export default function TelemetryDashboard() {
           return (
             <div
               key={c.key}
-              style={{ background: 'var(--bg-2)', padding: 8, borderRadius: 6 }}
+              className="metric-card"
             >
+              <div className="metric-label">{c.label}</div>
+              <div className="metric-value" aria-live="polite">
+                {formatVal(typeof v === 'number' ? v : null, c.digits ?? 2)}{' '}
+                <span className="metric-suffix">{c.suffix}</span>
+              </div>
               <div style={{ fontSize: 10, opacity: 0.6, textTransform: 'uppercase' }}>{c.label}</div>
               <div style={{ fontSize: 18, fontWeight: 600 }} aria-live="polite">
                 {formatVal(typeof v === 'number' ? v : null, c.digits ?? 2)}{' '}

@@ -94,75 +94,35 @@ export default function TripDetailPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="page-shell">
       <AppHeader />
-      <div
-        style={{
-          padding: '10px 16px',
-          background: 'var(--bg-2)',
-          borderBottom: '1px solid #000',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}
-      >
-        <Link to="/trips" style={{ color: 'var(--accent)' }}>
+      <div className="trip-detail-header">
+        <Link to="/trips" style={{ color: 'var(--fg-secondary)', fontSize: 13 }}>
           ← Trips
         </Link>
         <div style={{ flex: 1, minWidth: 0 }}>
           {editing ? (
-            <form
-              onSubmit={onSaveEdit}
-              style={{ display: 'flex', gap: 6, alignItems: 'center' }}
-            >
-              <input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                required
-                minLength={1}
-                maxLength={255}
-                autoFocus
-                style={{ flex: 1, padding: 6, minWidth: 200 }}
-              />
-              <button type="submit" disabled={saving}>
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing(false);
-                  setEditName(trip?.name ?? '');
-                }}
-                disabled={saving}
-              >
-                Cancel
-              </button>
+            <form onSubmit={onSaveEdit} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input value={editName} onChange={(e) => setEditName(e.target.value)} required minLength={1} maxLength={255} autoFocus style={{ flex: 1, padding: 6, minWidth: 200 }} />
+              <button type="submit" disabled={saving} className="btn-sm">{saving ? 'Saving…' : 'Save'}</button>
+              <button type="button" onClick={() => { setEditing(false); setEditName(trip?.name ?? ''); }} disabled={saving} className="btn-sm">Cancel</button>
             </form>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {trip?.name ?? (loadError ? 'Trip' : 'Loading…')}
               </strong>
-              {trip && (
-                <button onClick={() => setEditing(true)} aria-label="Rename trip" style={{ fontSize: 12 }}>
-                  Rename
-                </button>
-              )}
+              {trip && <button onClick={() => setEditing(true)} aria-label="Rename trip" className="btn-sm">Rename</button>}
             </div>
           )}
           {trip && !editing && (
-            <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>
+            <div style={{ fontSize: 12, color: 'var(--fg-muted)', marginTop: 2 }}>
               {fmtDate(trip.startTime)} → {fmtDate(trip.endTime)} · {fmtDuration(trip.startTime, trip.endTime)} · {fmtDistance(trip.totalDistanceMeters)}
             </div>
           )}
         </div>
         {trip && (
-          <button
-            onClick={onDelete}
-            disabled={deleting}
-            style={{ color: 'var(--danger)' }}
-            aria-label="Delete trip"
-          >
+          <button onClick={onDelete} disabled={deleting} className="btn-danger btn-sm" aria-label="Delete trip">
             {deleting ? 'Deleting…' : 'Delete'}
           </button>
         )}
@@ -173,13 +133,13 @@ export default function TripDetailPage() {
         </div>
       )}
       <div style={{ flex: 1, display: 'grid', gridTemplateRows: '1fr auto', minHeight: 0 }}>
-        <div className="trip-detail-main" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#000' }}>
+        <div className="trip-detail-main">
           <MapView tripId={tripId} hasGps={trip?.hasGps ?? true} />
-          <div style={{ background: 'var(--bg)', overflow: 'auto' }}>
+          <div style={{ background: 'var(--bg-primary)', overflow: 'auto' }}>
             <TelemetryDashboard />
           </div>
         </div>
-        <div style={{ padding: 8, background: 'var(--bg-2)' }}>
+        <div className="playback-bar">
           <PlaybackControls />
         </div>
       </div>

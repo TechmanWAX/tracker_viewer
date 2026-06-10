@@ -151,142 +151,68 @@ export default function TripsListPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div className="page-shell">
       <AppHeader />
-      <div style={{ padding: 24, flex: 1 }}>
-        <h1>Trips</h1>
-        {loading && <p style={{ opacity: 0.6 }}>Loading…</p>}
+      <div className="page-main fade-in">
+        <h1 style={{ marginBottom: 20 }}>Trips</h1>
+        {loading && <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{[1, 2, 3].map((i) => <div key={i} className="skeleton" style={{ height: 60 }} />)}</div>}
         {error && (
-          <div style={{ color: 'var(--danger)', marginBottom: 12 }}>
+          <div style={{ color: 'var(--danger)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
             {error}{' '}
-            <button onClick={refresh} style={{ marginLeft: 8 }}>
-              Retry
-            </button>
+            <button onClick={refresh} className="btn-sm">Retry</button>
           </div>
         )}
         {!loading && trips.length === 0 && (
-          <p>
-            No trips yet. <Link to="/trips/upload">Upload your first CSV</Link>.
-          </p>
+          <div className="card" style={{ padding: 32, textAlign: 'center' }}>
+            <div style={{ fontSize: 36, marginBottom: 8, opacity: 0.3 }}>📂</div>
+            <p style={{ color: 'var(--fg-secondary)' }}>No trips yet.</p>
+            <Link to="/trips/upload" className="btn-primary" style={{ display: 'inline-flex', marginTop: 12, textDecoration: 'none' }}>
+              Upload your first CSV
+            </Link>
+          </div>
         )}
-        {trips.length > 0 && (
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {trips.map((t) => {
-              const state = rowState[t.id]?.kind ?? 'idle';
-              const errMsg =
-                rowState[t.id]?.kind === 'error'
-                  ? (rowState[t.id] as { kind: 'error'; message: string }).message
-                  : null;
-              return (
-                <li
-                  key={t.id}
-                  style={{
-                    padding: 12,
-                    margin: '8px 0',
-                    background: 'var(--bg-2)',
-                    borderRadius: 6,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 200 }}>
-                    <Link
-                      to={`/trips/${t.id}`}
-                      style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}
-                    >
-                      {t.name}
-                    </Link>
-                    <div style={{ fontSize: 12, opacity: 0.65, marginTop: 4 }}>
-                      {fmtDate(t.startTime)} → {fmtDate(t.endTime)} · {fmtDuration(t.startTime, t.endTime)} · {fmtDistance(t.totalDistanceMeters)}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => navigate(`/trips/${t.id}`)}
-                    aria-label={`Open ${t.name}`}
-                    disabled={state === 'deleting'}
-                  >
-                    Open
+        {trips.length > 0 && trips.map((t) => {
+          const state = rowState[t.id]?.kind ?? 'idle';
+          const errMsg = rowState[t.id]?.kind === 'error'
+            ? (rowState[t.id] as { kind: 'error'; message: string }).message
+            : null;
+          return (
+            <div key={t.id} className="trip-card">
+              <div className="trip-card-body">
+                <Link to={`/trips/${t.id}`} className="trip-card-name">
+                  {t.name}
+                </Link>
+                <div className="trip-card-meta">
+                  <span>{fmtDate(t.startTime)} → {fmtDate(t.endTime)}</span>
+                  <span>{fmtDuration(t.startTime, t.endTime)}</span>
+                  <span>{fmtDistance(t.totalDistanceMeters)}</span>
+                  {t.hasGps ? (
+                    <span className="badge badge-accent" style={{ fontSize: 10 }}>GPS</span>
+                  ) : (
+                    <span className="badge" style={{ fontSize: 10 }}>No GPS</span>
+                  )}
+                </div>
+              </div>
+              <div className="trip-card-actions">
+                <button onClick={() => navigate(`/trips/${t.id}`)}>Open</button>
+                {state === 'confirming' ? (
+                  <>
+                    <span style={{ fontSize: 12, color: 'var(--danger)' }}>Delete?</span>
+                    <button onClick={() => onDeleteClick(t)} className="btn-danger btn-sm">Yes</button>
+                    <button onClick={() => onCancelConfirm(t)} className="btn-sm">No</button>
+                  </>
+                ) : (
+                  <button onClick={() => onDeleteClick(t)} disabled={state === 'deleting'} className="btn-ghost btn-sm">
+                    {state === 'deleting' ? 'Deleting…' : 'Delete'}
                   </button>
-                  {state === 'confirming' && (
-                    <span
-                      role="alert"
-                      style={{ fontSize: 12, opacity: 0.85, marginRight: 4 }}
-                    >
-                      Delete "{t.name}" and all its telemetry?
-                    </span>
-                  )}
-                  {state === 'confirming' && (
-                    <button
-                      onClick={() => onCancelConfirm(t)}
-                      aria-label={`Cancel deleting ${t.name}`}
-                    >
-                      Cancel
-                    </button>
-                  )}
-                  {state === 'confirming' && (
-                    <button
-                      onClick={() => onDeleteClick(t)}
-                      aria-label={`Confirm delete ${t.name}`}
-                      style={{ color: 'var(--danger)' }}
-                    >
-                      Sure, delete
-                    </button>
-                  )}
-                  {state === 'idle' && (
-                    <button
-                      onClick={() => onDeleteClick(t)}
-                      aria-label={`Delete ${t.name}`}
-                      style={{ color: 'var(--danger)' }}
-                    >
-                      Delete
-                    </button>
-                  )}
-                  {state === 'deleting' && (
-                    <button
-                      disabled
-                      aria-busy="true"
-                      aria-label={`Deleting ${t.name}`}
-                      style={{ color: 'var(--danger)' }}
-                    >
-                      Deleting…
-                    </button>
-                  )}
-                  {state === 'error' && errMsg && (
-                    <div
-                      role="alert"
-                      data-testid="delete-error"
-                      style={{
-                        flexBasis: '100%',
-                        color: 'var(--danger)',
-                        fontSize: 12,
-                        display: 'flex',
-                        gap: 8,
-                        alignItems: 'center',
-                      }}
-                    >
-                      <span>{errMsg}</span>
-                      <button
-                        onClick={() => onDeleteClick(t)}
-                        aria-label={`Retry delete ${t.name}`}
-                        style={{ color: 'var(--danger)' }}
-                      >
-                        Retry
-                      </button>
-                      <button
-                        onClick={() => clearRow(t.id)}
-                        aria-label={`Dismiss error for ${t.name}`}
-                      >
-                        Dismiss
-                      </button>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
+                )}
+              </div>
+              {errMsg && (
+                <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 4 }}>{errMsg}</div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

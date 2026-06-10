@@ -7,8 +7,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  // When login fails with 403, we keep the typed email so the
-  // "resend verification" button can reuse it.
   const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null);
   const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [resendMessage, setResendMessage] = useState<string>('');
@@ -53,66 +51,58 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ maxWidth: 320, margin: '10vh auto', padding: 24, background: 'var(--bg-2)', borderRadius: 8 }}>
-      <h1>Sign in</h1>
-      <form onSubmit={submit} style={{ display: 'grid', gap: 12 }}>
-        <label>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-            style={{ width: '100%', padding: 8 }}
-          />
-        </label>
-        <label>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            style={{ width: '100%', padding: 8 }}
-          />
-        </label>
-        {error && (
-          <div
-            data-testid="login-error"
-            role="alert"
-            style={{ color: 'var(--danger)', fontSize: 13, lineHeight: 1.4 }}
-          >
-            {error}
-            {unverifiedEmail && (
-              <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={onResend}
-                  disabled={resendStatus === 'sending'}
-                  aria-label="Resend verification email"
-                >
-                  {resendStatus === 'sending' ? 'Sending…' : 'Resend verification email'}
-                </button>
-              </div>
-            )}
-            {resendStatus === 'sent' && (
-              <div style={{ marginTop: 6, color: 'var(--ok)' }} data-testid="resend-success">
-                {resendMessage}
-              </div>
-            )}
-            {resendStatus === 'error' && (
-              <div style={{ marginTop: 6, color: 'var(--danger)' }}>{resendMessage}</div>
-            )}
+    <div className="auth-page fade-in">
+      <div className="card card-glass auth-card">
+        <h1>Welcome back</h1>
+        <p>Sign in to your account</p>
+        <form onSubmit={submit}>
+          <div>
+            <label>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+              placeholder="you@example.com"
+            />
           </div>
-        )}
-        <button type="submit" disabled={busy} style={{ padding: 10 }}>
-          {busy ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
-      <div style={{ marginTop: 16, fontSize: 13, opacity: 0.8 }}>
-        Need an account? <Link to="/register">Sign up</Link>
+          <div>
+            <label>Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              placeholder="••••••••"
+            />
+          </div>
+          {error && (
+            <div role="alert" style={{ color: 'var(--danger)', fontSize: 13, lineHeight: 1.4, padding: '8px 12px', background: 'var(--danger-soft)', borderRadius: 'var(--radius)' }}>
+              {error}
+              {unverifiedEmail && (
+                <div style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button type="button" onClick={onResend} disabled={resendStatus === 'sending'} className="btn-sm" style={{ margin: 0 }}>
+                    {resendStatus === 'sending' ? 'Sending…' : 'Resend verification email'}
+                  </button>
+                </div>
+              )}
+              {resendStatus === 'sent' && (
+                <div style={{ marginTop: 6, color: 'var(--success)' }}>{resendMessage}</div>
+              )}
+              {resendStatus === 'error' && (
+                <div style={{ marginTop: 6 }}>{resendMessage}</div>
+              )}
+            </div>
+          )}
+          <button type="submit" disabled={busy} className="btn-primary">
+            {busy ? 'Signing in…' : 'Sign in'}
+          </button>
+        </form>
+        <div className="auth-footer">
+          Don't have an account? <Link to="/register">Sign up</Link>
+        </div>
       </div>
     </div>
   );
