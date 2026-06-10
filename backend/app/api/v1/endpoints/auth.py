@@ -170,7 +170,7 @@ async def login(
     response.set_cookie(
         key=ACCESS_TOKEN_COOKIE,
         value=access_token,
-        httponly=True,
+        httponly=False,
         secure=cookie_secure,
         samesite="lax",
         max_age=int(access_expires.total_seconds()),
@@ -305,7 +305,7 @@ async def refresh_token(
     response.set_cookie(
         key=ACCESS_TOKEN_COOKIE,
         value=access_token,
-        httponly=True,
+        httponly=False,
         secure=cookie_secure,
         samesite="lax",
         max_age=int(access_expires.total_seconds()),
