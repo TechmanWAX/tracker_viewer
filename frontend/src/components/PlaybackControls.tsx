@@ -81,7 +81,8 @@ export default function PlaybackControls() {
               key={s}
               onClick={() => setSpeed(s)}
               aria-pressed={speed === s}
-              style={{
+      className="playback-controls"
+      style={{
                 marginLeft: 0,
                 fontWeight: speed === s ? 700 : 400,
                 minWidth: 40,

@@ -353,6 +353,7 @@ export default function TelemetryDashboard() {
           and follow the playback cursor. */}
       {summary && (
         <div
+          className="telemetry-summary"
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
@@ -412,7 +413,7 @@ export default function TelemetryDashboard() {
       )}
 
       {/* ---- Per-cursor metric cards ----------------------------- */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+      <div className="telemetry-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
         {METRIC_CARDS.map((c) => {
           const v = point?.[c.key] as number | undefined;
           // Per-row: show "—" when null (missing reading for
@@ -466,7 +467,7 @@ export default function TelemetryDashboard() {
       )}
 
       {/* ---- Charts --------------------------------------------- */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
+      <div className="telemetry-charts" style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 0 }}>
         <TelemetryChart
           data={chartDataDecimated}
           dataKey="speed"

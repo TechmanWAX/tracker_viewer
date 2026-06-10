@@ -173,7 +173,7 @@ export default function TripDetailPage() {
         </div>
       )}
       <div style={{ flex: 1, display: 'grid', gridTemplateRows: '1fr auto', minHeight: 0 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#000' }}>
+        <div className="trip-detail-main" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#000' }}>
           <MapView tripId={tripId} hasGps={trip?.hasGps ?? true} />
           <div style={{ background: 'var(--bg)', overflow: 'auto' }}>
             <TelemetryDashboard />

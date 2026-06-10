@@ -47,3 +47,61 @@ button:disabled {
 .app-nav-link--active:hover {
   color: var(--accent);
 }
+
+/* ── responsive ───────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .trip-detail-main {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: 45vh auto !important;
+  }
+
+  .trip-detail-main > :first-child {
+    max-height: 45vh;
+  }
+
+  .telemetry-cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .telemetry-summary {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .telemetry-charts {
+    gap: 4px !important;
+  }
+
+  .playback-controls {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .telemetry-cards {
+    grid-template-columns: 1fr !important;
+  }
+
+  .telemetry-summary {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .playback-controls button {
+    font-size: 11px;
+    padding: 4px 6px;
+  }
+}
+
+@media (min-width: 769px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}

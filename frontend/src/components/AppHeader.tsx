@@ -91,7 +91,7 @@ export default function AppHeader() {
       </nav>
       <div style={{ flex: 1 }} />
       {user && (
-        <span style={{ fontSize: 12, opacity: 0.7 }}>
+        <span className="hide-mobile" style={{ fontSize: 12, opacity: 0.7 }}>
           {user.username} <span style={{ opacity: 0.5 }}>({user.email})</span>
         </span>
       )}
