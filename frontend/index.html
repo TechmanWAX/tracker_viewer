@@ -7,16 +7,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;650&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-    <style>
-      /* prevent flash — hide until theme is applied */
-      html:not([data-theme]) body { visibility: hidden; }
-    </style>
     <script>
       (function () {
         var saved = localStorage.getItem('tracker-theme');
         var theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
         document.documentElement.setAttribute('data-theme', theme);
-        document.documentElement.style.visibility = '';
       })();
     </script>
   </head>
