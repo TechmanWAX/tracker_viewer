@@ -3,17 +3,16 @@ import type { TelemetryPoint } from '../types/telemetry';
 
 interface TelemetryState {
   points: TelemetryPoint[];
-  // Total points in the trip (from backend COUNT). The store only
-  // holds up to API_FETCH_LIMIT_OVERVIEW points (currently 50k),
-  // so this is the "of Y" in the map overlay's "X of Y pts".
   totalPoints: number;
   currentIndex: number;
   isPlaying: boolean;
   speed: number;
+  hoverMs: number | null;
   setPoints: (points: TelemetryPoint[], total?: number) => void;
   setCurrentIndex: (i: number) => void;
   setIsPlaying: (v: boolean) => void;
   setSpeed: (s: number) => void;
+  setHoverMs: (ms: number | null) => void;
 }
 
 export const useTelemetryStore = create<TelemetryState>((set) => ({
@@ -22,8 +21,11 @@ export const useTelemetryStore = create<TelemetryState>((set) => ({
   currentIndex: 0,
   isPlaying: false,
   speed: 1,
-  setPoints: (points, total?) => set({ points, totalPoints: total ?? points.length, currentIndex: 0 }),
+  hoverMs: null,
+  setPoints: (points, total?) =>
+    set({ points, totalPoints: total ?? points.length, currentIndex: 0, hoverMs: null }),
   setCurrentIndex: (i) => set({ currentIndex: i }),
   setIsPlaying: (v) => set({ isPlaying: v }),
   setSpeed: (s) => set({ speed: s }),
+  setHoverMs: (ms) => set({ hoverMs: ms }),
 }));

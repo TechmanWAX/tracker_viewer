@@ -144,17 +144,27 @@ const vehicleIcon = L.divIcon({
   iconAnchor: [7, 7],
 });
 
+const hoverIcon = L.divIcon({
+  className: 'custom-hover-icon',
+  html: '<div style="background-color:#fbbf24;width:12px;height:12px;border:2px solid white;border-radius:50%;box-shadow:0 0 6px rgba(0,0,0,0.5);opacity:0.8;"></div>',
+  iconSize: [12, 12],
+  iconAnchor: [6, 6],
+});
+
 export default function MapView({ tripId, hasGps = true }: Props) {
   const setPoints = useTelemetryStore((s) => s.setPoints);
   const points = useTelemetryStore((s) => s.points);
   const totalPoints = useTelemetryStore((s) => s.totalPoints);
   const currentIndex = useTelemetryStore((s) => s.currentIndex);
+  const hoverMs = useTelemetryStore((s) => s.hoverMs);
+  const setHoverMs = useTelemetryStore((s) => s.setHoverMs);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
-  const { registerMarkerSink } = usePlayback();
+  const hoverMarkerRef = useRef<L.Marker | null>(null);
+  const { registerMarkerSink, seekToIndex } = usePlayback();
 
   useEffect(() => {
     return () => {
@@ -264,6 +274,36 @@ export default function MapView({ tripId, hasGps = true }: Props) {
     [points],
   );
 
+  // Hover marker: moved independently from playback. When the user
+  // hovers a chart or the polyline, the store's `hoverMs` drives
+  // this marker to the corresponding position.
+  useEffect(() => {
+    const m = hoverMarkerRef.current;
+    if (!m) return;
+    if (hoverMs == null) {
+      m.setOpacity(0);
+      return;
+    }
+    for (let i = 0; i < positionedPoints.length - 1; i++) {
+      const a = positionedPoints[i];
+      const b = positionedPoints[i + 1];
+      const tA = new Date(a.ts).getTime();
+      const tB = new Date(b.ts).getTime();
+      if (tA <= hoverMs && hoverMs <= tB) {
+        const frac = tB === tA ? 0 : (hoverMs - tA) / (tB - tA);
+        const lat = a.lat + (b.lat - a.lat) * frac;
+        const lon = a.lon + (b.lon - a.lon) * frac;
+        m.setLatLng([lat, lon]);
+        m.setOpacity(0.9);
+        return;
+      }
+    }
+    if (positionedPoints.length > 0) {
+      m.setLatLng([positionedPoints[0].lat, positionedPoints[0].lon]);
+      m.setOpacity(0.9);
+    }
+  }, [hoverMs, positionedPoints]);
+
   const currentPos: [number, number] | null = positionedPoints.length
     ? (() => {
         const idx = Math.min(currentIndex, positionedPoints.length - 1);
@@ -327,6 +367,32 @@ export default function MapView({ tripId, hasGps = true }: Props) {
           <Polyline
             positions={polylinePoints}
             pathOptions={{ color: '#4f9eff', weight: 4, opacity: 0.9 }}
+            eventHandlers={{
+              mousemove: (e) => {
+                const { lat, lng } = e.latlng;
+                let bestIdx = 0;
+                let bestDist = Infinity;
+                for (let i = 0; i < positionedPoints.length; i++) {
+                  const p = positionedPoints[i];
+                  const d = (p.lat - lat) ** 2 + (p.lon - lng) ** 2;
+                  if (d < bestDist) { bestDist = d; bestIdx = i; }
+                }
+                const tsMs = new Date(positionedPoints[bestIdx].ts).getTime();
+                setHoverMs(tsMs);
+              },
+              mouseout: () => setHoverMs(null),
+              click: (e) => {
+                const { lat, lng } = e.latlng;
+                let bestIdx = 0;
+                let bestDist = Infinity;
+                for (let i = 0; i < positionedPoints.length; i++) {
+                  const p = positionedPoints[i];
+                  const d = (p.lat - lat) ** 2 + (p.lon - lng) ** 2;
+                  if (d < bestDist) { bestDist = d; bestIdx = i; }
+                }
+                seekToIndex(bestIdx);
+              },
+            }}
           />
         )}
         {currentPos && (
@@ -334,6 +400,14 @@ export default function MapView({ tripId, hasGps = true }: Props) {
             ref={markerRef}
             position={currentPos}
             icon={vehicleIcon}
+          />
+        )}
+        {hoverMs != null && (
+          <Marker
+            ref={hoverMarkerRef}
+            position={positionedPoints.length > 0 ? [positionedPoints[0].lat, positionedPoints[0].lon] : [0, 0]}
+            icon={hoverIcon}
+            zIndexOffset={900}
           />
         )}
       </MapContainer>

@@ -76,39 +76,88 @@ const METRIC_CARDS: { key: NumericKey; label: string; suffix: string; digits?: n
   { key: 'temp2', label: 'Motor/Battery Temp', suffix: '°C', digits: 1 },
 ];
 
+function medianInterval(points: TelemetryPoint[]): number {
+  const intervals: number[] = [];
+  for (let i = 1; i < points.length; i++) {
+    const dt = new Date(points[i].ts).getTime() - new Date(points[i - 1].ts).getTime();
+    if (Number.isFinite(dt) && dt > 0) intervals.push(dt);
+  }
+  if (intervals.length === 0) return 1000;
+  intervals.sort((a, b) => a - b);
+  return intervals[Math.floor(intervals.length / 2)];
+}
+
+function makeDatum(p: TelemetryPoint, ms: number): ChartDatum {
+  return {
+    ms,
+    speed: p.speed ?? 0,
+    gpsSpeed: p.gpsSpeed ?? 0,
+    voltage: p.voltage ?? 0,
+    current: p.current ?? 0,
+    phaseCurrent: p.phaseCurrent ?? 0,
+    power: p.power ?? 0,
+    torque: p.torque ?? 0,
+    pwm: p.pwm ?? 0,
+    batteryLevel: p.batteryLevel ?? 0,
+    systemTemp: p.systemTemp ?? 0,
+    temp2: p.temp2 ?? 0,
+    distance: p.distance ?? null,
+    totalDistance: p.totalDistance ?? null,
+    tilt: p.tilt ?? null,
+    roll: p.roll ?? null,
+    gpsAlt: p.gpsAlt ?? null,
+    gpsHeading: p.gpsHeading ?? null,
+    gpsDistance: p.gpsDistance ?? null,
+    mode: p.mode ?? null,
+    alert: p.alert ?? null,
+  };
+}
+
+const GAP_MULTIPLIER = 5;
+
 function toChartData(points: TelemetryPoint[]): ChartDatum[] {
   if (points.length === 0) return [];
-  const out: ChartDatum[] = new Array(points.length);
-  for (let i = 0; i < points.length; i++) {
-    const p = points[i];
-    const ms = new Date(p.ts).getTime();
-    out[i] = {
-      ms: Number.isFinite(ms) ? ms : 0,
-      // Numeric fields default to 0 so the chart doesn't have
-      // holes — the map/dashboard already shows "—" for the card
-      // value via the null-aware `formatVal` below.
-      speed: p.speed ?? 0,
-      gpsSpeed: p.gpsSpeed ?? 0,
-      voltage: p.voltage ?? 0,
-      current: p.current ?? 0,
-      phaseCurrent: p.phaseCurrent ?? 0,
-      power: p.power ?? 0,
-      torque: p.torque ?? 0,
-      pwm: p.pwm ?? 0,
-      batteryLevel: p.batteryLevel ?? 0,
-      systemTemp: p.systemTemp ?? 0,
-      temp2: p.temp2 ?? 0,
-      // Non-numeric, passthrough.
-      distance: p.distance ?? null,
-      totalDistance: p.totalDistance ?? null,
-      tilt: p.tilt ?? null,
-      roll: p.roll ?? null,
-      gpsAlt: p.gpsAlt ?? null,
-      gpsHeading: p.gpsHeading ?? null,
-      gpsDistance: p.gpsDistance ?? null,
-      mode: p.mode ?? null,
-      alert: p.alert ?? null,
-    };
+  if (points.length < 3) {
+    return points.map((p) => makeDatum(p, new Date(p.ts).getTime()));
+  }
+  const med = medianInterval(points);
+  const gapThreshold = med * GAP_MULTIPLIER;
+  const out: ChartDatum[] = [];
+  out.push(makeDatum(points[0], new Date(points[0].ts).getTime()));
+  for (let i = 1; i < points.length; i++) {
+    const ms = new Date(points[i].ts).getTime();
+    const prevMs = new Date(points[i - 1].ts).getTime();
+    const dt = ms - prevMs;
+    if (Number.isFinite(dt) && dt > gapThreshold) {
+      // Insert a sentinel entry whose numeric fields are NaN.
+      // recharts breaks the line at NaN (connectNulls controls
+      // this), so the gap renders as a clean break instead of a
+      // misleading diagonal line across hours of missing data.
+      out.push({
+        ms: prevMs + 1,
+        speed: NaN,
+        gpsSpeed: NaN,
+        voltage: NaN,
+        current: NaN,
+        phaseCurrent: NaN,
+        power: NaN,
+        torque: NaN,
+        pwm: NaN,
+        batteryLevel: NaN,
+        systemTemp: NaN,
+        temp2: NaN,
+        distance: null,
+        totalDistance: null,
+        tilt: null,
+        roll: null,
+        gpsAlt: null,
+        gpsHeading: null,
+        gpsDistance: null,
+        mode: null,
+        alert: null,
+      });
+    }
+    out.push(makeDatum(points[i], ms));
   }
   return out;
 }
@@ -152,14 +201,18 @@ function TelemetryChart({
   label,
   color,
   cursorMs,
+  hoverMs,
   height = 140,
+  setHoverMs,
 }: {
   data: ChartDatum[];
   dataKey: keyof ChartDatum;
   label: string;
   color: string;
   cursorMs: number;
+  hoverMs: number | null;
   height?: number;
+  setHoverMs: (ms: number | null) => void;
 }) {
   if (data.length === 0) {
     return (
@@ -169,16 +222,26 @@ function TelemetryChart({
       </div>
     );
   }
+  const displayMs = hoverMs ?? cursorMs;
   return (
     <div style={{ background: 'var(--bg-2)', padding: 12, borderRadius: 8, height }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
         <span style={{ opacity: 0.85 }}>{label}</span>
         <span style={{ opacity: 0.5, fontFamily: 'monospace' }}>
-          {new Date(cursorMs).toISOString().slice(11, 19)}
+          {new Date(displayMs).toISOString().slice(11, 19)}
         </span>
       </div>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 6, right: 12, bottom: 0, left: 0 }}>
+        <LineChart
+          data={data}
+          margin={{ top: 6, right: 12, bottom: 0, left: 0 }}
+          onMouseMove={(e) => {
+            if (e?.activePayload?.[0]?.payload?.ms != null) {
+              setHoverMs(e.activePayload[0].payload.ms);
+            }
+          }}
+          onMouseLeave={() => setHoverMs(null)}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#2a2f3a" />
           <XAxis dataKey="ms" hide type="number" domain={['dataMin', 'dataMax']} />
           <YAxis
@@ -199,6 +262,7 @@ function TelemetryChart({
             dot={false}
             strokeWidth={2}
             isAnimationActive={false}
+            connectNulls={false}
           />
           <ReferenceLine
             x={cursorMs}
@@ -206,6 +270,15 @@ function TelemetryChart({
             strokeWidth={2}
             label={{ value: 'NOW', position: 'top', fill: '#ef4444', fontSize: 10 }}
           />
+          {hoverMs != null && (
+            <ReferenceLine
+              x={hoverMs}
+              stroke="#fbbf24"
+              strokeWidth={1.5}
+              strokeDasharray="4 2"
+              label={{ value: '✦', position: 'top', fill: '#fbbf24', fontSize: 10 }}
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -238,6 +311,8 @@ function fmtDuration(ms: number): string {
 export default function TelemetryDashboard() {
   const points = useTelemetryStore((s) => s.points);
   const currentIndex = useTelemetryStore((s) => s.currentIndex);
+  const hoverMs = useTelemetryStore((s) => s.hoverMs);
+  const setHoverMs = useTelemetryStore((s) => s.setHoverMs);
 
   const chartData = useMemo(() => toChartData(points), [points]);
   // Decimated copy used ONLY for the <TelemetryChart> line rendering.
@@ -245,6 +320,20 @@ export default function TelemetryDashboard() {
   // (full resolution) via `point = chartData[currentIndex]`.
   const chartDataDecimated = useMemo(() => decimateChart(chartData), [chartData]);
   const point = chartData[currentIndex];
+
+  // Find the closest chart entry to the hover timestamp.
+  const hoverPoint = useMemo(() => {
+    if (hoverMs == null || chartDataDecimated.length === 0) return null;
+    let lo = 0;
+    let hi = chartDataDecimated.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (chartDataDecimated[mid].ms < hoverMs) lo = mid + 1;
+      else hi = mid;
+    }
+    return chartDataDecimated[lo];
+  }, [hoverMs, chartDataDecimated]);
+  const displayPoint = hoverPoint ?? point;
 
   // ---- trip-level aggregates (whole trip, not just cursor) --------
   // We compute the summary stats over the full set so they don't
@@ -415,7 +504,7 @@ export default function TelemetryDashboard() {
       {/* ---- Per-cursor metric cards ----------------------------- */}
       <div className="telemetry-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
         {METRIC_CARDS.map((c) => {
-          const v = point?.[c.key] as number | undefined;
+          const v = displayPoint?.[c.key] as number | undefined;
           // Per-row: show "—" when null (missing reading for
           // this sample), the actual value otherwise. Negative
           // values render with a leading minus; regen reads will
@@ -474,6 +563,8 @@ export default function TelemetryDashboard() {
           label="Velocity (km/h)"
           color={SPEED_COLOR}
           cursorMs={cursorMs}
+          hoverMs={hoverMs}
+          setHoverMs={setHoverMs}
         />
         <TelemetryChart
           data={chartDataDecimated}
@@ -481,6 +572,8 @@ export default function TelemetryDashboard() {
           label="Power (W)"
           color={POWER_COLOR}
           cursorMs={cursorMs}
+          hoverMs={hoverMs}
+          setHoverMs={setHoverMs}
         />
         <TelemetryChart
           data={chartDataDecimated}
@@ -488,6 +581,8 @@ export default function TelemetryDashboard() {
           label="Battery (%)"
           color={BATTERY_COLOR}
           cursorMs={cursorMs}
+          hoverMs={hoverMs}
+          setHoverMs={setHoverMs}
         />
         <TelemetryChart
           data={chartDataDecimated}
@@ -495,6 +590,8 @@ export default function TelemetryDashboard() {
           label="Voltage (V)"
           color={VOLTAGE_COLOR}
           cursorMs={cursorMs}
+          hoverMs={hoverMs}
+          setHoverMs={setHoverMs}
         />
         <TelemetryChart
           data={chartDataDecimated}
@@ -502,6 +599,8 @@ export default function TelemetryDashboard() {
           label="Current (A) — +draw / −regen"
           color={CURRENT_COLOR}
           cursorMs={cursorMs}
+          hoverMs={hoverMs}
+          setHoverMs={setHoverMs}
         />
       </div>
     </div>
