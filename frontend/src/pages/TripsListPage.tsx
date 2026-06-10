@@ -168,6 +168,11 @@ export default function TripsListPage() {
     }
   }
 
+  async function handleCopyLink(t: Trip) {
+    if (!t.shareToken) return;
+    await navigator.clipboard.writeText(`${window.location.origin}/share/${t.shareToken}`);
+  }
+
   async function onDeleteConfirmed(t: Trip) {
     setRow(t.id, { kind: 'deleting' });
     try {
@@ -242,13 +247,20 @@ export default function TripsListPage() {
               <div className="trip-card-actions">
                 <button onClick={() => navigate(`/trips/${t.id}`)}>Open</button>
                 {t.isShared ? (
-                  <button
-                    onClick={() => void handleUnshare(t)}
-                    disabled={sharing[t.id]}
-                    className="btn-sm btn-danger"
-                  >
-                    {sharing[t.id] ? '...' : 'Revoke'}
-                  </button>
+                  <>
+                    <button
+                      onClick={() => void handleUnshare(t)}
+                      disabled={sharing[t.id]}
+                      className="btn-sm btn-danger"
+                    >
+                      {sharing[t.id] ? '...' : 'Revoke'}
+                    </button>
+                    <button
+                      onClick={() => void handleCopyLink(t)}
+                      className="btn-sm"
+                      title="Copy share link"
+                    >📋</button>
+                  </>
                 ) : (
                   <button
                     onClick={() => void handleShare(t)}
