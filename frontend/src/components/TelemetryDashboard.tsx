@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
+  Brush,
 } from 'recharts';
 import { useTelemetryStore } from '../store/telemetryStore';
 import type { TelemetryPoint } from '../types/telemetry';
@@ -30,7 +31,9 @@ type NumericKey =
   | 'temp2';
 
 interface ChartDatum {
+  xIndex: number;
   ms: number;
+  isGap?: boolean;
   speed: number;
   gpsSpeed: number;
   voltage: number;
@@ -87,8 +90,9 @@ function medianInterval(points: TelemetryPoint[]): number {
   return intervals[Math.floor(intervals.length / 2)];
 }
 
-function makeDatum(p: TelemetryPoint, ms: number): ChartDatum {
+function makeDatum(p: TelemetryPoint, ms: number, xi: number): ChartDatum {
   return {
+    xIndex: xi,
     ms,
     speed: p.speed ?? 0,
     gpsSpeed: p.gpsSpeed ?? 0,
@@ -113,51 +117,48 @@ function makeDatum(p: TelemetryPoint, ms: number): ChartDatum {
   };
 }
 
+function makeGapEntry(ms: number, xi: number): ChartDatum {
+  return {
+    xIndex: xi,
+    ms,
+    isGap: true,
+    speed: NaN, gpsSpeed: NaN, voltage: NaN, current: NaN, phaseCurrent: NaN,
+    power: NaN, torque: NaN, pwm: NaN, batteryLevel: NaN, systemTemp: NaN,
+    temp2: NaN,
+    distance: null, totalDistance: null, tilt: null, roll: null,
+    gpsAlt: null, gpsHeading: null, gpsDistance: null, mode: null, alert: null,
+  };
+}
+
 const GAP_MULTIPLIER = 5;
 
+/**
+ * Build ChartDatum[] with sequential xIndex (no time-based gaps on
+ * the x-axis).  When the firmware stops logging for a while, we
+ * insert a sentinel NaN entry flagged `isGap` so the chart line
+ * breaks cleanly and the component can render a gap marker.
+ */
 function toChartData(points: TelemetryPoint[]): ChartDatum[] {
   if (points.length === 0) return [];
+  const out: ChartDatum[] = [];
+  let xi = 0;
+  out.push(makeDatum(points[0], new Date(points[0].ts).getTime(), xi++));
   if (points.length < 3) {
-    return points.map((p) => makeDatum(p, new Date(p.ts).getTime()));
+    for (let i = 1; i < points.length; i++) {
+      out.push(makeDatum(points[i], new Date(points[i].ts).getTime(), xi++));
+    }
+    return out;
   }
   const med = medianInterval(points);
   const gapThreshold = med * GAP_MULTIPLIER;
-  const out: ChartDatum[] = [];
-  out.push(makeDatum(points[0], new Date(points[0].ts).getTime()));
   for (let i = 1; i < points.length; i++) {
     const ms = new Date(points[i].ts).getTime();
     const prevMs = new Date(points[i - 1].ts).getTime();
     const dt = ms - prevMs;
     if (Number.isFinite(dt) && dt > gapThreshold) {
-      // Insert a sentinel entry whose numeric fields are NaN.
-      // recharts breaks the line at NaN (connectNulls controls
-      // this), so the gap renders as a clean break instead of a
-      // misleading diagonal line across hours of missing data.
-      out.push({
-        ms: prevMs + 1,
-        speed: NaN,
-        gpsSpeed: NaN,
-        voltage: NaN,
-        current: NaN,
-        phaseCurrent: NaN,
-        power: NaN,
-        torque: NaN,
-        pwm: NaN,
-        batteryLevel: NaN,
-        systemTemp: NaN,
-        temp2: NaN,
-        distance: null,
-        totalDistance: null,
-        tilt: null,
-        roll: null,
-        gpsAlt: null,
-        gpsHeading: null,
-        gpsDistance: null,
-        mode: null,
-        alert: null,
-      });
+      out.push(makeGapEntry(prevMs + 1, xi++));
     }
-    out.push(makeDatum(points[i], ms));
+    out.push(makeDatum(points[i], ms, xi++));
   }
   return out;
 }
@@ -200,8 +201,8 @@ function TelemetryChart({
   dataKey,
   label,
   color,
-  cursorMs,
-  hoverMs,
+  cursorX,
+  hoverX,
   height = 140,
   setHoverMs,
 }: {
@@ -209,8 +210,8 @@ function TelemetryChart({
   dataKey: keyof ChartDatum;
   label: string;
   color: string;
-  cursorMs: number;
-  hoverMs: number | null;
+  cursorX: number | null;
+  hoverX: number | null;
   height?: number;
   setHoverMs: (ms: number | null) => void;
 }) {
@@ -222,19 +223,37 @@ function TelemetryChart({
       </div>
     );
   }
-  const displayMs = hoverMs ?? cursorMs;
+
+  // Gap markers: filter in the current data slice, pick unique
+  // positions, and render one dashed line per gap.
+  const gapLines = useMemo(() => {
+    const seen = new Set<number>();
+    const out: { x: number }[] = [];
+    for (const d of data) {
+      if (d.isGap && !seen.has(d.xIndex)) {
+        seen.add(d.xIndex);
+        out.push({ x: d.xIndex });
+      }
+    }
+    return out;
+  }, [data]);
+
+  const displayMs = hoverX != null
+    ? data.find((d) => d.xIndex === hoverX)?.ms ?? null
+    : null;
+
   return (
     <div style={{ background: 'var(--bg-2)', padding: 12, borderRadius: 8, height }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
         <span style={{ opacity: 0.85 }}>{label}</span>
         <span style={{ opacity: 0.5, fontFamily: 'monospace' }}>
-          {new Date(displayMs).toISOString().slice(11, 19)}
+          {displayMs != null ? new Date(displayMs).toISOString().slice(11, 19) : '—'}
         </span>
       </div>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
-          margin={{ top: 6, right: 12, bottom: 0, left: 0 }}
+          margin={{ top: 6, right: 12, bottom: 20, left: 0 }}
           onMouseMove={(e) => {
             if (e?.activePayload?.[0]?.payload?.ms != null) {
               setHoverMs(e.activePayload[0].payload.ms);
@@ -243,7 +262,7 @@ function TelemetryChart({
           onMouseLeave={() => setHoverMs(null)}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#2a2f3a" />
-          <XAxis dataKey="ms" hide type="number" domain={['dataMin', 'dataMax']} />
+          <XAxis dataKey="xIndex" hide type="number" domain={['dataMin', 'dataMax']} />
           <YAxis
             stroke="#64748b"
             fontSize={10}
@@ -252,7 +271,10 @@ function TelemetryChart({
           />
           <Tooltip
             contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', fontSize: 12 }}
-            labelFormatter={(v) => new Date(Number(v)).toISOString().slice(11, 19)}
+            labelFormatter={(xi) => {
+              const d = data[Number(xi) - (data[0]?.xIndex ?? 0)];
+              return d ? new Date(d.ms).toISOString().slice(11, 19) : String(xi);
+            }}
             itemStyle={{ color }}
           />
           <Line
@@ -264,21 +286,34 @@ function TelemetryChart({
             isAnimationActive={false}
             connectNulls={false}
           />
-          <ReferenceLine
-            x={cursorMs}
-            stroke="#ef4444"
-            strokeWidth={2}
-            label={{ value: 'NOW', position: 'top', fill: '#ef4444', fontSize: 10 }}
-          />
-          {hoverMs != null && (
+          {cursorX != null && (
             <ReferenceLine
-              x={hoverMs}
+              x={cursorX}
+              stroke="#ef4444"
+              strokeWidth={2}
+              label={{ value: 'NOW', position: 'top', fill: '#ef4444', fontSize: 10 }}
+            />
+          )}
+          {hoverX != null && (
+            <ReferenceLine
+              x={hoverX}
               stroke="#fbbf24"
               strokeWidth={1.5}
               strokeDasharray="4 2"
               label={{ value: '✦', position: 'top', fill: '#fbbf24', fontSize: 10 }}
             />
           )}
+          {gapLines.length > 0 && gapLines.map((g) => (
+            <ReferenceLine
+              key={g.x}
+              x={g.x}
+              stroke="#64748b"
+              strokeWidth={1}
+              strokeDasharray="2 2"
+              label={{ value: '∥', position: 'top', fill: '#64748b', fontSize: 9 }}
+            />
+          ))}
+          <Brush dataKey="xIndex" height={20} stroke="#4f9eff" fill="var(--bg-2)" />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -432,6 +467,21 @@ export default function TelemetryDashboard() {
 
   const cursorMs = point?.ms ?? chartData[0]?.ms ?? 0;
 
+  // Map cursor / hover timestamps to sequential xIndex for the
+  // decimated chart (the charts use xIndex as the X axis).
+  const cursorX = useMemo(() => {
+    if (chartDataDecimated.length === 0) return null;
+    let best = chartDataDecimated[0].xIndex;
+    let bestDist = Infinity;
+    for (const d of chartDataDecimated) {
+      const dist = Math.abs(d.ms - cursorMs);
+      if (dist < bestDist) { bestDist = dist; best = d.xIndex; }
+    }
+    return best;
+  }, [cursorMs, chartDataDecimated]);
+
+  const hoverX = hoverPoint?.xIndex ?? null;
+
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12, height: '100%' }}>
       {/* ---- Trip summary ---------------------------------------- */}
@@ -562,8 +612,8 @@ export default function TelemetryDashboard() {
           dataKey="speed"
           label="Velocity (km/h)"
           color={SPEED_COLOR}
-          cursorMs={cursorMs}
-          hoverMs={hoverMs}
+          cursorX={cursorX}
+          hoverX={hoverX}
           setHoverMs={setHoverMs}
         />
         <TelemetryChart
@@ -571,8 +621,8 @@ export default function TelemetryDashboard() {
           dataKey="power"
           label="Power (W)"
           color={POWER_COLOR}
-          cursorMs={cursorMs}
-          hoverMs={hoverMs}
+          cursorX={cursorX}
+          hoverX={hoverX}
           setHoverMs={setHoverMs}
         />
         <TelemetryChart
@@ -580,8 +630,8 @@ export default function TelemetryDashboard() {
           dataKey="batteryLevel"
           label="Battery (%)"
           color={BATTERY_COLOR}
-          cursorMs={cursorMs}
-          hoverMs={hoverMs}
+          cursorX={cursorX}
+          hoverX={hoverX}
           setHoverMs={setHoverMs}
         />
         <TelemetryChart
@@ -589,8 +639,8 @@ export default function TelemetryDashboard() {
           dataKey="voltage"
           label="Voltage (V)"
           color={VOLTAGE_COLOR}
-          cursorMs={cursorMs}
-          hoverMs={hoverMs}
+          cursorX={cursorX}
+          hoverX={hoverX}
           setHoverMs={setHoverMs}
         />
         <TelemetryChart
@@ -598,8 +648,8 @@ export default function TelemetryDashboard() {
           dataKey="current"
           label="Current (A) — +draw / −regen"
           color={CURRENT_COLOR}
-          cursorMs={cursorMs}
-          hoverMs={hoverMs}
+          cursorX={cursorX}
+          hoverX={hoverX}
           setHoverMs={setHoverMs}
         />
       </div>
