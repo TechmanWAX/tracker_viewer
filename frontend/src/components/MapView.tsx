@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { fetchPoints } from '../api/telemetry';
@@ -137,6 +137,100 @@ function BoundsFitter({
   return null;
 }
 
+/**
+ * Auto-center: fits the map when playback starts and re-fits
+ * 30 seconds after the last user interaction (pan/zoom).
+ */
+const AUTO_FIT_DELAY_MS = 30_000;
+
+function AutoCenter({
+  positionedPoints,
+  currentIndex,
+  isPlaying,
+}: {
+  positionedPoints: Array<TelemetryPoint & { lat: number; lon: number }>;
+  currentIndex: number;
+  isPlaying: boolean;
+}) {
+  const map = useMap();
+  const wasPlaying = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const programmaticRef = useRef(false);
+
+  const fitAroundIndex = useCallback((idx: number) => {
+    if (positionedPoints.length === 0) return;
+    const i = Math.min(idx, positionedPoints.length - 1);
+    const p = positionedPoints[i];
+    programmaticRef.current = true;
+    map.setView([p.lat, p.lon], 15, { animate: true });
+    setTimeout(() => { programmaticRef.current = false; }, 500);
+  }, [map, positionedPoints]);
+
+  const fitFullTrack = useCallback(() => {
+    if (positionedPoints.length === 0) return;
+    if (positionedPoints.length === 1) {
+      const p = positionedPoints[0];
+      programmaticRef.current = true;
+      map.setView([p.lat, p.lon], 15, { animate: true });
+      setTimeout(() => { programmaticRef.current = false; }, 500);
+      return;
+    }
+    const lats = positionedPoints.map((p) => p.lat);
+    const lons = positionedPoints.map((p) => p.lon);
+    const bounds = L.latLngBounds(
+      [Math.min(...lats), Math.min(...lons)],
+      [Math.max(...lats), Math.max(...lons)],
+    );
+    programmaticRef.current = true;
+    map.fitBounds(bounds, { padding: [40, 40], animate: true, maxZoom: 17 });
+    setTimeout(() => { programmaticRef.current = false; }, 500);
+  }, [map, positionedPoints]);
+
+  const clearTimer = useCallback(() => {
+    if (timerRef.current !== null) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const scheduleAutoFit = useCallback(() => {
+    clearTimer();
+    timerRef.current = setTimeout(() => {
+      if (useTelemetryStore.getState().isPlaying) {
+        fitAroundIndex(useTelemetryStore.getState().currentIndex);
+      } else {
+        fitFullTrack();
+      }
+    }, AUTO_FIT_DELAY_MS);
+  }, [clearTimer, fitAroundIndex, fitFullTrack]);
+
+  useEffect(() => {
+    if (isPlaying && !wasPlaying.current) {
+      fitAroundIndex(currentIndex);
+      clearTimer();
+    }
+    wasPlaying.current = isPlaying;
+  }, [isPlaying, currentIndex, fitAroundIndex, clearTimer]);
+
+  useEffect(() => {
+    const onInteract = () => {
+      if (programmaticRef.current) return;
+      scheduleAutoFit();
+    };
+    map.on('movestart', onInteract);
+    map.on('zoomstart', onInteract);
+    return () => {
+      clearTimer();
+      map.off('movestart', onInteract);
+      map.off('zoomstart', onInteract);
+    };
+  }, [map, scheduleAutoFit, clearTimer]);
+
+  useEffect(() => () => clearTimer(), [clearTimer]);
+
+  return null;
+}
+
 const vehicleIcon = L.divIcon({
   className: 'custom-vehicle-icon',
   html: '<div style="background-color:#ef4444;width:14px;height:14px;border:2px solid white;border-radius:50%;box-shadow:0 0 6px rgba(0,0,0,0.6);"></div>',
@@ -156,6 +250,7 @@ export default function MapView({ tripId, hasGps = true }: Props) {
   const points = useTelemetryStore((s) => s.points);
   const totalPoints = useTelemetryStore((s) => s.totalPoints);
   const currentIndex = useTelemetryStore((s) => s.currentIndex);
+  const isPlaying = useTelemetryStore((s) => s.isPlaying);
   const hoverMs = useTelemetryStore((s) => s.hoverMs);
   const setHoverMs = useTelemetryStore((s) => s.setHoverMs);
   const [error, setError] = useState<string | null>(null);
@@ -363,6 +458,7 @@ export default function MapView({ tripId, hasGps = true }: Props) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <BoundsFitter points={points} tripId={tripId} />
+        <AutoCenter positionedPoints={positionedPoints} currentIndex={currentIndex} isPlaying={isPlaying} />
         {polylinePoints.length > 1 && (
           <Polyline
             positions={polylinePoints}
