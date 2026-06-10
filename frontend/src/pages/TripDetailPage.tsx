@@ -94,7 +94,7 @@ export default function TripDetailPage() {
   }
 
   return (
-    <div className="page-shell">
+    <div className="page-shell" style={{ height: '100dvh' }}>
       <AppHeader />
       <div className="trip-detail-header">
         <Link to="/trips" style={{ color: 'var(--fg-secondary)', fontSize: 13 }}>
@@ -132,10 +132,10 @@ export default function TripDetailPage() {
           {loadError} <Link to="/trips">Back to trips</Link>
         </div>
       )}
-      <div style={{ flex: 1, display: 'grid', gridTemplateRows: '1fr auto', minHeight: 0 }}>
-        <div className="trip-detail-main">
+      <div style={{ flex: 1, display: 'grid', gridTemplateRows: '1fr auto', minHeight: 0, overflow: 'hidden' }}>
+        <div className="trip-detail-main" style={{ overflow: 'hidden' }}>
           <MapView tripId={tripId} hasGps={trip?.hasGps ?? true} />
-          <div style={{ background: 'var(--bg-primary)', overflow: 'auto' }}>
+          <div style={{ background: 'var(--bg-primary)', overflow: 'auto', minHeight: 0 }}>
             <TelemetryDashboard />
           </div>
         </div>
