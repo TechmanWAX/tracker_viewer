@@ -11,6 +11,7 @@ import {
   Brush,
 } from 'recharts';
 import { useTelemetryStore } from '../store/telemetryStore';
+import { usePlayback } from '../hooks/usePlayback';
 import type { TelemetryPoint } from '../types/telemetry';
 
 // All numeric telemetry columns that we render in the charts / cards.
@@ -205,6 +206,7 @@ function TelemetryChart({
   hoverX,
   height = 140,
   setHoverMs,
+  onClickChart,
 }: {
   data: ChartDatum[];
   dataKey: keyof ChartDatum;
@@ -214,6 +216,7 @@ function TelemetryChart({
   hoverX: number | null;
   height?: number;
   setHoverMs: (ms: number | null) => void;
+  onClickChart?: (ms: number) => void;
 }) {
   // All hooks must come before any early return (React Rules of
   // Hooks). The chart component always calls useMemo for gap
@@ -256,6 +259,7 @@ function TelemetryChart({
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={data}
+          syncId="telemetry-sync"
           margin={{ top: 6, right: 12, bottom: 20, left: 0 }}
           onMouseMove={(e) => {
             if (e?.activePayload?.[0]?.payload?.ms != null) {
@@ -263,6 +267,11 @@ function TelemetryChart({
             }
           }}
           onMouseLeave={() => setHoverMs(null)}
+          onClick={(e) => {
+            if (onClickChart && e?.activePayload?.[0]?.payload?.ms != null) {
+              onClickChart(e.activePayload[0].payload.ms);
+            }
+          }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#2a2f3a" />
           <XAxis dataKey="xIndex" hide type="number" domain={['dataMin', 'dataMax']} />
@@ -351,6 +360,7 @@ export default function TelemetryDashboard() {
   const currentIndex = useTelemetryStore((s) => s.currentIndex);
   const hoverMs = useTelemetryStore((s) => s.hoverMs);
   const setHoverMs = useTelemetryStore((s) => s.setHoverMs);
+  const { seekToIndex } = usePlayback();
 
   const chartData = useMemo(() => toChartData(points), [points]);
   // Decimated copy used ONLY for the <TelemetryChart> line rendering.
@@ -483,6 +493,20 @@ export default function TelemetryDashboard() {
   }, [cursorMs, chartDataDecimated]);
 
   const hoverX = hoverPoint?.xIndex ?? null;
+
+  const handleChartClick = useMemo(() => {
+    return (ms: number) => {
+      if (points.length === 0) return;
+      let lo = 0;
+      let hi = points.length - 1;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (new Date(points[mid].ts).getTime() < ms) lo = mid + 1;
+        else hi = mid;
+      }
+      seekToIndex(lo);
+    };
+  }, [points, seekToIndex]);
 
   if (points.length === 0) {
     return <div style={{ padding: 16, opacity: 0.6 }}>Loading telemetry…</div>;
@@ -626,6 +650,7 @@ export default function TelemetryDashboard() {
           cursorX={cursorX}
           hoverX={hoverX}
           setHoverMs={setHoverMs}
+          onClickChart={handleChartClick}
         />
         <TelemetryChart
           data={chartDataDecimated}
@@ -635,6 +660,7 @@ export default function TelemetryDashboard() {
           cursorX={cursorX}
           hoverX={hoverX}
           setHoverMs={setHoverMs}
+          onClickChart={handleChartClick}
         />
         <TelemetryChart
           data={chartDataDecimated}
@@ -644,6 +670,7 @@ export default function TelemetryDashboard() {
           cursorX={cursorX}
           hoverX={hoverX}
           setHoverMs={setHoverMs}
+          onClickChart={handleChartClick}
         />
         <TelemetryChart
           data={chartDataDecimated}
@@ -653,6 +680,7 @@ export default function TelemetryDashboard() {
           cursorX={cursorX}
           hoverX={hoverX}
           setHoverMs={setHoverMs}
+          onClickChart={handleChartClick}
         />
         <TelemetryChart
           data={chartDataDecimated}
@@ -662,6 +690,7 @@ export default function TelemetryDashboard() {
           cursorX={cursorX}
           hoverX={hoverX}
           setHoverMs={setHoverMs}
+          onClickChart={handleChartClick}
         />
       </div>
     </div>
