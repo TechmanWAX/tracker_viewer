@@ -98,11 +98,11 @@ export default function MapView({ tripId, hasGps = true, skipFetch = false }: Pr
   const { seekToIndex } = usePlayback();
   const lightLayerRef = useRef(new TileLayer({
     source: new XYZ({
-      url: 'https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png',
-      maxZoom: 17,
-      attributions: '© <a href="https://opentopomap.org">OpenTopoMap</a>',
+      url: 'https://{a-d}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+      maxZoom: 19,
+      attributions: '© <a href="https://carto.com/">CARTO</a>',
+      crossOrigin: 'anonymous',
     }),
-    visible: true,
   }));
   const darkLayerRef = useRef(new TileLayer({
     source: new XYZ({
