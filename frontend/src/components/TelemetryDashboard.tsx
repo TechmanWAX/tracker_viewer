@@ -464,14 +464,13 @@ export default function TelemetryDashboard() {
     };
   }, [points]);
 
-  if (points.length === 0) {
-    return <div style={{ padding: 16, opacity: 0.6 }}>Loading telemetry…</div>;
-  }
-
+  // All hooks must be above any early return. **Cursor** and
+  // **hover** helpers depend on `chartDataDecimated` (which is
+  // already computed by the hooks above), so we compute them
+  // here unconditionally and let the early return below skip
+  // the JSX when there are no points.
   const cursorMs = point?.ms ?? chartData[0]?.ms ?? 0;
 
-  // Map cursor / hover timestamps to sequential xIndex for the
-  // decimated chart (the charts use xIndex as the X axis).
   const cursorX = useMemo(() => {
     if (chartDataDecimated.length === 0) return null;
     let best = chartDataDecimated[0].xIndex;
@@ -484,6 +483,10 @@ export default function TelemetryDashboard() {
   }, [cursorMs, chartDataDecimated]);
 
   const hoverX = hoverPoint?.xIndex ?? null;
+
+  if (points.length === 0) {
+    return <div style={{ padding: 16, opacity: 0.6 }}>Loading telemetry…</div>;
+  }
 
   return (
     <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 12, height: '100%' }}>
