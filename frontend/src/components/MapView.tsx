@@ -145,11 +145,9 @@ const AUTO_FIT_DELAY_MS = 30_000;
 
 function AutoCenter({
   positionedPoints,
-  currentIndex,
   isPlaying,
 }: {
   positionedPoints: Array<TelemetryPoint & { lat: number; lon: number }>;
-  currentIndex: number;
   isPlaying: boolean;
 }) {
   const map = useMap();
@@ -458,7 +456,7 @@ export default function MapView({ tripId, hasGps = true }: Props) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <BoundsFitter points={points} tripId={tripId} />
-        <AutoCenter positionedPoints={positionedPoints} currentIndex={currentIndex} isPlaying={isPlaying} />
+        <AutoCenter positionedPoints={positionedPoints} isPlaying={isPlaying} />
         {polylinePoints.length > 1 && (
           <Polyline
             positions={polylinePoints}
